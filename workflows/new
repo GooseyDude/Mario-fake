@@ -1,0 +1,219 @@
+import pygame
+import time
+
+pygame.init()
+
+largeur = 600
+hauteur = 400
+
+screen = pygame.display.set_mode((largeur, hauteur))
+clock = pygame.time.Clock()
+
+# Player
+player = pygame.Rect(largeur // 3, 50, 40, 40)
+vel_x = 0
+vel_y = 0
+gravity = 0.5
+jump_strength = -10
+walking_time = 0
+jump_times = 0
+jumping = False       # first jump done
+jumping_2 = False     # second jump done
+time_check = 0
+value = 0
+facing_right = True
+on_ground = False
+
+image_sprite = [pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test2.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test1.png.png"),
+                pygame.image.load("test3.png.png"),
+                pygame.image.load("test3.png.png"),
+                pygame.image.load("test3.png.png"),
+                pygame.image.load("test3.png.png"),
+                pygame.image.load("test3.png.png"),
+                pygame.image.load("test3.png.png"),
+                pygame.image.load("test3.png.png"),]
+
+# Example level: floor + walls
+platforms = [
+    pygame.Rect(-5000, 350, 10000, 50),  # ground
+    pygame.Rect(200, 300, 50, 100),      # wall
+]
+
+sprite_sheet_image = pygame.image.load("runbingus/bingus.png").convert_alpha()
+
+
+def renew():
+    global jump_position
+    jump_position = player.y
+    print("Jump started at:", jump_position)
+
+
+def countdown(t):
+    while t:
+        mins, secs = divmod(t, 60)
+        timer = '{:02d}:{:02d}'.format(mins, secs)
+        print(timer, end='\r')  # Overwrite the line each second
+        time.sleep(1)
+        t -= 1
+    print("renewed jump")
+
+
+t = 4
+temps = 0
+
+
+def move_and_collide(player, vel_x, vel_y, platforms, keys):
+    global largeur, hauteur
+    global jumping, jumping_2
+    global on_ground
+
+    # 1) FIRST: decide horizontal velocity from keys
+    vel_x = 0
+    if keys[pygame.K_LEFT]:
+        vel_x = -4
+    if keys[pygame.K_RIGHT]:
+        vel_x = 4
+
+    # 2) Move horizontally (scroll or move player)
+    #    Your original code used "old" vel_x before keys were read.
+    if (platforms[0].x > -9000) and (platforms[0].x < 0) and (
+        (player.x > 0.75 * largeur and vel_x > 0) or
+        (player.x < 0.25 * largeur and vel_x < 0)
+    ):
+        # Scroll platforms
+        for p in platforms:
+            p.x -= vel_x
+    else:
+        # Move player directly
+        player.x += vel_x
+
+    # 3) Horizontal collision
+    for p in platforms:
+        if player.colliderect(p):
+            if vel_x > 0:      # moving right
+                player.right = p.left
+            elif vel_x < 0:    # moving left
+                player.left = p.right
+            vel_x = 0
+
+    # 4) Move vertically
+    player.y += vel_y
+    on_ground = False
+
+    # 5) Vertical collision
+    for p in platforms:
+        if player.colliderect(p):
+            if vel_y > 0:      # falling
+                player.bottom = p.top
+                on_ground = True
+            elif vel_y < 0:    # jumping upward
+                player.top = p.bottom
+            vel_y = 0
+
+    # 6) Jump / double jump with UP key
+    if keys[pygame.K_UP] and not jumping:
+        # First jump
+        vel_y = jump_strength
+        jumping = True
+
+    elif keys[pygame.K_UP] and jumping and not jumping_2 and not on_ground:
+        # Second jump in the air (double jump)
+        vel_y = jump_strength
+        jumping_2 = True
+
+    # 7) Reset jump state when we are on the ground
+    if on_ground and vel_y == 0:
+        jumping = False
+        jumping_2 = False
+
+    return vel_x, vel_y, on_ground
+
+
+################################
+# MAIN LOOP
+################################
+
+running = True
+while running:
+    
+    if vel_x > 0:
+        facing_right = True
+    elif vel_x < 0:
+        facing_right = False
+    
+    if value >= len(image_sprite):
+        value = 0
+    
+    image = image_sprite[value]
+
+        
+    width = image.get_width()
+    height = image.get_height()
+    
+    bigus = pygame.transform.scale_by(image,2 )
+
+
+    if not facing_right:
+        bigus = pygame.transform.flip(bigus, True, False)
+        
+    if vel_x != 4 == False or vel_x != -4 == False:
+        value = 0
+    
+    
+    temps += 1
+    
+    if vel_x == 4 or vel_x == -4:
+        value += 1
+        
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    keys = pygame.key.get_pressed()
+
+    # Apply gravity
+    vel_y += gravity
+    if vel_y > 10:
+        vel_y = 10  # terminal velocity
+
+    # Move + Check collisions
+    vel_x, vel_y, on_ground = move_and_collide(player, vel_x, vel_y, platforms, keys)
+
+    # Drawing
+    screen.fill((30, 30, 30))
+
+    # Draw platforms
+    for p in platforms:
+        pygame.draw.rect(screen, (200, 0, 0), p)
+
+    # Draw player
+    pygame.draw.rect(screen, (0, 200, 0), player)
+
+    # Draw sprite (for example, stick it on the player)
+    screen.blit(bigus, (player.x - 13 , player.y - 22))
+
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()   
