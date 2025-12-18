@@ -32,7 +32,7 @@ dashing = False
 dash_timer = 0
 can_dash = True
 DASH_SPEED = 12
-DASH_DURATION = 10
+DASH_DURATION = 10  # frames
 
 # -----------------------------
 # PLAYER SPRITES
@@ -51,4 +51,221 @@ image_sprite = [
 # -----------------------------
 image_sprite_enemy = [
     pygame.image.load("enemy_sprite/New Piskel-1.png.png"),
-    pygame.image.load("enemy_sprite/enemy-2.p_
+    pygame.image.load("enemy_sprite/enemy-2.png.png"),
+    pygame.image.load("enemy_sprite/enemy-3.png.png"),
+    pygame.image.load("enemy_sprite/enemy-4.png.png"),
+    pygame.image.load("enemy_sprite/enemy-5.png.png"),
+    pygame.image.load("enemy_sprite/enemy-6.png.png"),
+    pygame.image.load("enemy_sprite/enemy-7.png.png"),
+    pygame.image.load("enemy_sprite/enemy-8.png.png"),
+    pygame.image.load("enemy_sprite/enemy-9.png.png"),
+]
+
+# -----------------------------
+# LEVEL / PLATFORMS
+# -----------------------------
+platforms = [
+    pygame.Rect(-5000, 350, 10000, 50),  # ground
+    pygame.Rect(200, 300, 50, 100),
+    pygame.Rect(450, 300, 50, 100),
+]
+
+# -----------------------------
+# ENEMY CLASS
+# -----------------------------
+class Enemy:
+    def __init__(self, x, y, speed=2):
+        self.rect = pygame.Rect(x, y, 32, 32)
+        self.speed = speed
+        self.direction = 1
+        self.anim = 0
+
+    def update(self, platforms):
+        self.rect.x += self.speed * self.direction
+
+        for p in platforms:
+            if self.rect.colliderect(p):
+                if self.direction > 0:
+                    self.rect.right = p.left
+                else:
+                    self.rect.left = p.right
+                self.direction *= -1
+
+        self.anim += 0.2
+        if self.anim >= len(image_sprite_enemy):
+            self.anim = 0
+
+    def draw(self, screen):
+        img = image_sprite_enemy[int(self.anim)]
+        img = pygame.transform.scale_by(img, 2)
+
+        if self.direction < 0:
+            img = pygame.transform.flip(img, True, False)
+
+        screen.blit(
+            img,
+            (self.rect.x - img.get_width() // 4,
+             self.rect.y - img.get_height() // 2)
+        )
+
+# -----------------------------
+# CREATE ENEMIES
+# -----------------------------
+enemies = [
+    Enemy(300, 318),
+    Enemy(550, 318),
+]
+
+# -----------------------------
+# PLAYER MOVEMENT + SCROLLING
+# -----------------------------
+def move_and_collide(player, vel_x, vel_y, platforms, enemies, keys):
+    global jumping, jumping_2, on_ground, dashing, dash_timer, can_dash, facing_right
+
+    # Dash
+    if keys[pygame.K_LSHIFT] and not dashing and can_dash:
+        dashing = True
+        dash_timer = DASH_DURATION
+        can_dash = False
+
+    if dashing:
+        if facing_right:
+            player.x += DASH_SPEED
+        else:
+            player.x -= DASH_SPEED
+        dash_timer -= 1
+        if dash_timer <= 0:
+            dashing = False
+        # Ignore normal horizontal movement during dash
+        vel_x = 0
+    else:
+        # Normal horizontal movement
+        vel_x = 0
+        if keys[pygame.K_LEFT]:
+            vel_x = -4
+        if keys[pygame.K_RIGHT]:
+            vel_x = 4
+
+    # CAMERA / WORLD SCROLL
+    if (platforms[0].x > -9000) and (platforms[0].x < 0) and (
+        (player.x > 0.75 * largeur and vel_x > 0) or
+        (player.x < 0.25 * largeur and vel_x < 0)
+    ):
+        for p in platforms:
+            p.x -= vel_x
+        for e in enemies:
+            e.rect.x -= vel_x
+    else:
+        player.x += vel_x
+
+    # Horizontal collision
+    for p in platforms:
+        if player.colliderect(p):
+            if vel_x > 0:
+                player.right = p.left
+            elif vel_x < 0:
+                player.left = p.right
+
+    # Vertical movement
+    player.y += vel_y
+    on_ground = False
+
+    for p in platforms:
+        if player.colliderect(p):
+            if vel_y > 0:
+                player.bottom = p.top
+                on_ground = True
+                can_dash = True  # Reset dash on ground
+            elif vel_y < 0:
+                player.top = p.bottom
+            vel_y = 0
+
+    # Jumping
+    if keys[pygame.K_UP] and not jumping:
+        vel_y = jump_strength
+        jumping = True
+    elif keys[pygame.K_UP] and jumping and not jumping_2 and not on_ground:
+        vel_y = jump_strength
+        jumping_2 = True
+
+    if on_ground:
+        jumping = False
+        jumping_2 = False
+
+    return vel_x, vel_y
+
+# -----------------------------
+# MAIN LOOP
+# -----------------------------
+running = True
+while running:
+    clock.tick(60)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    keys = pygame.key.get_pressed()
+    
+    for enemy in enemies[:]:  # loop safely
+        if player.colliderect(enemy.rect):
+
+            # PLAYER STOMPS ENEMY
+            if vel_y > 0 and player.bottom - enemy.rect.top < 15:
+                enemies.remove(enemy)
+                vel_y = jump_strength // 2
+
+            # PLAYER HIT FROM SIDE
+            else:
+                player.x = largeur // 3
+                player.y = 50
+                vel_y = 0
+
+    # Gravity
+    vel_y += gravity
+    if vel_y > 10:
+        vel_y = 10
+
+    vel_x, vel_y = move_and_collide(
+        player, vel_x, vel_y, platforms, enemies, keys
+    )
+
+    # Player animation
+    if vel_x != 0:
+        player_anim += 0.2
+        if player_anim >= len(image_sprite):
+            player_anim = 0
+    else:
+        player_anim = 0
+
+    if vel_x > 0:
+        facing_right = True
+    elif vel_x < 0:
+        facing_right = False
+
+    player_img = image_sprite[int(player_anim)]
+    player_img = pygame.transform.scale_by(player_img, 2)
+
+    if not facing_right:
+        player_img = pygame.transform.flip(player_img, True, False)
+
+    # Update enemies
+    for enemy in enemies:
+        enemy.update(platforms)
+
+    # DRAW
+    screen.fill((30, 30, 30))
+
+    for p in platforms:
+        pygame.draw.rect(screen, (200, 0, 0), p)
+
+    for enemy in enemies:
+        enemy.draw(screen)
+
+    pygame.draw.rect(screen, (0, 200, 0), player)
+    screen.blit(player_img, (player.x - 13, player.y - 22))
+
+    pygame.display.flip()
+
+pygame.quit()
+
