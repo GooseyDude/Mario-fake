@@ -71,6 +71,7 @@ class Enemy:
         self.direction = 1
         self.anim = 0
 
+#ai
     def update(self, platforms):
         self.rect.x += self.speed * self.direction
 
@@ -85,6 +86,7 @@ class Enemy:
         self.anim += 0.2
         if self.anim >= len(image_sprite_enemy):
             self.anim = 0
+#ai
 
     def draw(self, screen):
         img = image_sprite_enemy[int(self.anim)]
@@ -178,6 +180,20 @@ while running:
             running = False
 
     keys = pygame.key.get_pressed()
+    
+    for enemy in enemies[:]:  # loop safely
+        if player.colliderect(enemy.rect):
+
+            # PLAYER STOMPS ENEMY
+            if vel_y > 0 and player.bottom - enemy.rect.top < 15:
+                enemies.remove(enemy)
+                vel_y = jump_strength // 2
+
+            # PLAYER HIT FROM SIDE
+            else:
+                player.x = largeur // 3
+                player.y = 50
+                vel_y = 	0
 
     # Gravity
     vel_y += gravity
