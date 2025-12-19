@@ -28,7 +28,7 @@ background = pygame.transform.scale(background, (800, 600))
 #mise en place de class bouton 
 button_surface = pygame.image.load("bouton_play.png")
 button_surface = pygame.transform.scale(button_surface, (400, 400))
-button = Button(button_surface, 400, 500, "PLAY")  
+button = Button(button_surface, 400, 500, "PLAY")
 
 
 #####################
@@ -74,3 +74,4 @@ pygame.quit()
 #Fin du programme
 
 #########
+
